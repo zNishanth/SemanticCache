@@ -1,16 +1,16 @@
-ECOCACHE (SEMANTIC CACHE GATEWAY):
+##ECOCACHE (SEMANTIC CACHE GATEWAY):
 
-MVP in Brief(GOAL) : 
-A differently worded repeat question is answered from cache, for free, and the dashboard shows the savings.(Not just Cache , question with same meaning worded differently)
+## MVP in Brief(GOAL) : 
+-A differently worded repeat question is answered from cache, for free, and the dashboard shows the savings.(Not just Cache , question with same meaning worded differently)
 
-IN SCOPE PRESENTLY  (MVP):
-1)Chat endpoint: POST /api/chat accepts a prompt, returns an answer plus metadata (source: exact | semantic | llm, latency, cost saved).
-2)Rate limiting: Bucket4j per client (by IP or API key), returns 429 with Retry-After.
-3)Exact-match cache: Redis, keyed by hash of the normalized prompt, with a TTL.
-4)Semantic cache: embed the prompt, run a pgvector similarity search, return a match above the threshold.
-5)LLM call on miss: one provider, then store prompt, embedding, and answer in both Redis and PostgreSQL.
-6)Basic telemetry: hit/miss counts, average latency per layer, estimated money saved.
-7)Simple frontend: a chat box that shows the answer with a badge (“Exact hit”, “Semantic hit”, “LLM call”) and a small stats panel.
+## IN SCOPE PRESENTLY  (MVP):
+-1)Chat endpoint: POST /api/chat accepts a prompt, returns an answer plus metadata (source: exact | semantic | llm, latency, cost saved).
+-2)Rate limiting: Bucket4j per client (by IP or API key), returns 429 with Retry-After.
+-3)Exact-match cache: Redis, keyed by hash of the normalized prompt, with a TTL.
+-4)Semantic cache: embed the prompt, run a pgvector similarity search, return a match above the threshold.
+-5)LLM call on miss: one provider, then store prompt, embedding, and answer in both Redis and PostgreSQL.
+-6)Basic telemetry: hit/miss counts, average latency per layer, estimated money saved.
+-7)Simple frontend: a chat box that shows the answer with a badge (“Exact hit”, “Semantic hit”, “LLM call”) and a small stats panel.
 
 
 ## Architecture
