@@ -1,24 +1,57 @@
-EchoCache: Stop paying twice for the same AI question
+ECOCACHE (SEMANTIC CACHE GATEWAY):
 
-The Problem
-If you've ever built an AI-powered app, you know the pain: every single prompt sent to an LLM costs money and makes your users wait 2 to 10 seconds for a response. Worse yet, users naturally ask the same core question in a dozen different ways ("How do I reset my password?" vs. "Forgot password, what do I do?" vs. "Reset my login").
-Traditional caches look at these as totally different strings, so your app makes three separate, paid, slow API calls for the exact same underlying intent.
+MVP in Brief(GOAL) : 
+A differently worded repeat question is answered from cache, for free, and the dashboard shows the savings.(Not just Cache , question with same meaning worded differently)
 
-
-
-Who is Facing It?
-This hits student teams, hackathon participants, and early-stage indie developers the most. When you're running on a tight budget or a free tier, a sudden traffic spike or a loop bug during 
-a demo can completely exhaust your API credits and slow your app to a crawl within hours.
-
-
-The Idea
-What if our backend had a memory? Instead of treating natural language like rigid code, what if our system could understand that two differently worded questions mean the exact same thing—and instantly serve the cached answer for free in milliseconds?
+IN SCOPE PRESENTLY  (MVP):
+1)Chat endpoint: POST /api/chat accepts a prompt, returns an answer plus metadata (source: exact | semantic | llm, latency, cost saved).
+2)Rate limiting: Bucket4j per client (by IP or API key), returns 429 with Retry-After.
+3)Exact-match cache: Redis, keyed by hash of the normalized prompt, with a TTL.
+4)Semantic cache: embed the prompt, run a pgvector similarity search, return a match above the threshold.
+5)LLM call on miss: one provider, then store prompt, embedding, and answer in both Redis and PostgreSQL.
+6)Basic telemetry: hit/miss counts, average latency per layer, estimated money saved.
+7)Simple frontend: a chat box that shows the answer with a badge (“Exact hit”, “Semantic hit”, “LLM call”) and a small stats panel.
 
 
-The Solution
-EchoCache is a high-performance backend service engineered with Spring Boot, Redis, and PostgreSQL that acts as an intelligent optimization layer for LLM applications.
-Here is how it saves your wallet and your latency:
-1.The Exact Match: It checks Redis first for identical strings ($\sim$5 ms, $0 cost).
-2.The Semantic Layer: If that misses, it runs a semantic vector similarity check. If a past question matches the same intent, it pulls the answer instantly ($\sim$50 ms, $0 cost).
-3.The Safety Net: Genuine cache misses call the LLM and save the pair. Plus, built-in Bucket4j rate-limiting protects against spam (returning 429 Retry-After), and automatic provider fallbacks keep your app alive if the primary LLM goes down.
-4.Total Visibility: It tracks exact telemetry—showing developers their hit rates, latency drops, and literal money saved in real-time.
+## Architecture
+
+EchoCache is a proxy layer between a client app and an LLM provider. It answers repeat questions from cache, including differently worded ones, and calls the LLM only on a genuine miss.
+
+```
+User ──► Frontend (React)
+              │  POST /api/chat
+              ▼
+        Rate Limiter (Bucket4j, state in Redis)
+              │ allowed                └─► 429 Too Many Requests + Retry-After
+              ▼
+        Spring Boot Backend (ChatService)
+              │
+              ▼
+        1. Exact Cache (Redis) ───────── hit ──► return  (~5 ms, $0)
+              │ miss
+              ▼
+        2. Semantic Cache
+           embed prompt → pgvector search ── hit (≥ threshold) ──► return  (~50 ms, $0)
+              │ miss
+              ▼
+        3. LLM Provider (fallback provider on error/timeout)
+              │
+              ▼
+        4. Store new entry: Redis (exact key) + PostgreSQL (prompt, embedding, answer)
+              │
+              ▼
+        5. Record telemetry (every request) ──► return response
+```
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Java 21, Spring Boot 3 |
+| Exact cache and rate-limit state | Redis |
+| Semantic store | PostgreSQL + pgvector |
+| Rate limiting | Bucket4j |
+| Embeddings | API-based or local model |
+| LLM | Primary provider with fallback provider |
+| Frontend | ?? |
+| Local environment | Docker Compose |
